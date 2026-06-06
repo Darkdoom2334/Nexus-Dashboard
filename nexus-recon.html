@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NEXUS RECON OS v4.1.7</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #00ff41;
+    --green-dim: #336633;
+    --green-mid: #55aa55;
+    --bg-deep: #060c06;
+    --bg-dark: #0a0f0a;
+    --bg-card: #0a140a;
+    --bg-hover: #0f1f0f;
+    --border: #1a2a1a;
+    --border-bright: #00ff4133;
+    --mono: 'Share Tech Mono', monospace;
+    --head: 'Orbitron', sans-serif;
+    --red: #ff4444;
+    --amber: #f0c040;
+    --blue: #4499dd;
+  }
+
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg-dark);
+    font-family: var(--mono);
+    color: var(--green);
+  }
+
+  /* ─── SCANLINE OVERLAY ─── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 9999;
+    background: repeating-linear-gradient(to bottom, transparent 0px, transparent 3px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px);
+    pointer-events: none;
+  }
+
+  /* ─── BOOT SCREEN ─── */
+  #boot {
+    position: fixed; inset: 0; z-index: 100;
+    background: #000;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: flex-start;
+    padding: 10vw;
+    transition: opacity 0.5s;
+  }
+  #boot.fade-out { opacity: 0; }
+  .boot-line {
+    font-size: 13px; color: var(--green-dim);
+    line-height: 1.9; opacity: 0;
+    transition: opacity 0.12s;
+    white-space: nowrap;
+  }
+  .boot-line.show { opacity: 1; }
+  .boot-line .ok { color: var(--green); }
+  .boot-line .warn { color: var(--amber); }
+  .boot-line .err { color: var(--red); }
+  #boot-title {
+    font-family: var(--head); font-size: clamp(18px, 3vw, 32px);
+    color: var(--green); letter-spacing: 4px; margin-bottom: 32px;
+    opacity: 0; transition: opacity 0.3s;
+  }
+  #boot-title.show { opacity: 1; }
+  #boot-cursor {
+    display: inline-block; width: 9px; height: 14px;
+    background: var(--green); vertical-align: -3px;
+    animation: blink 0.8s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ─── MAIN LAYOUT ─── */
+  #app {
+    width: 100vw; height: 100vh;
+    display: flex; flex-direction: column;
+    opacity: 0; transition: opacity 0.5s;
+  }
+  #app.show { opacity: 1; }
+
+  /* ─── HEADER BAR ─── */
+  #header {
+    height: 44px; flex-shrink: 0;
+    background: var(--bg-deep);
+    border-bottom: 0.5px solid var(--border);
+    display: flex; align-items: center; padding: 0 20px; gap: 16px;
+  }
+  .header-title { font-family: var(--head); font-size: 12px; letter-spacing: 3px; color: var(--green); }
+  .header-sep { width: 0.5px; height: 20px; background: var(--border); }
+  .header-stat { font-size: 10px; color: var(--green-dim); }
+  .header-stat span { color: var(--green); }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 50% { opacity: 0.2; } }
+  .live-label { font-size: 10px; color: var(--green-dim); letter-spacing: 1px; }
+  .clock { font-size: 11px; color: var(--green-mid); }
+
+  /* ─── BODY ─── */
+  #body {
+    flex: 1; display: flex; overflow: hidden;
+  }
+
+  /* ─── SIDEBAR ─── */
+  #sidebar {
+    width: 210px; flex-shrink: 0;
+    background: var(--bg-deep);
+    border-right: 0.5px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .sb-header {
+    padding: 12px 14px 8px;
+    font-size: 9px; color: var(--green-dim);
+    letter-spacing: 2px; border-bottom: 0.5px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sb-cat {
+    padding: 10px 14px 4px;
+    font-size: 9px; color: var(--green-dim);
+    letter-spacing: 2px;
+  }
+  .sb-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 14px;
+    font-size: 11px; color: var(--green-mid);
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .sb-item:hover, .sb-item.active {
+    background: var(--bg-hover);
+    border-left-color: var(--green);
+    color: var(--green);
+  }
+  .sb-item i { font-size: 15px; width: 17px; }
+  .sb-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green-dim); margin-left: auto; flex-shrink: 0; }
+  .sb-item.active .sb-dot, .sb-item:hover .sb-dot { background: var(--green); }
+  .sb-item .sb-badge {
+    margin-left: auto; font-size: 8px; padding: 1px 5px;
+    border-radius: 2px; background: #2a0f0f; color: var(--red);
+    border: 0.5px solid #ff444433;
+  }
+
+  /* ─── CONTENT AREA ─── */
+  #content {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* ─── TAB BAR ─── */
+  #tabbar {
+    height: 38px; flex-shrink: 0;
+    background: #080e08;
+    border-bottom: 0.5px solid var(--border);
+    display: flex; align-items: center; padding: 0 16px; gap: 4px;
+  }
+  .tab {
+    font-size: 11px; color: var(--green-dim); padding: 4px 12px;
+    border-radius: 3px; cursor: pointer; transition: all 0.15s;
+  }
+  .tab:hover { color: var(--green); }
+  .tab.active {
+    background: #0f2a0f; color: var(--green);
+    border: 0.5px solid var(--border-bright);
+  }
+  #tab-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .scan-btn {
+    font-size: 10px; color: var(--green-dim);
+    padding: 4px 10px; border: 0.5px solid var(--border);
+    border-radius: 3px; cursor: pointer; display: flex; align-items: center; gap: 5px;
+    background: transparent; font-family: var(--mono);
+    transition: all 0.15s;
+  }
+  .scan-btn:hover { border-color: var(--green); color: var(--green); }
+
+  /* ─── DEVICE AREA ─── */
+  #device-area {
+    flex: 1; display: flex; overflow: hidden;
+  }
+
+  /* ─── DEVICE LIST (75%) ─── */
+  #device-list {
+    width: 75%; padding: 16px;
+    overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+    border-right: 0.5px solid var(--border);
+  }
+
+  .d-card {
+    background: var(--bg-deep);
+    border: 0.5px solid var(--border);
+    border-radius: 6px; padding: 13px 15px;
+    cursor: pointer; transition: all 0.15s;
+    position: relative;
+  }
+  .d-card:hover, .d-card.selected {
+    border-color: var(--green);
+    background: #0a1a0a;
+    box-shadow: inset 0 0 0 0.5px #00ff4111;
+  }
+  .d-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 11px;
+  }
+  .d-icon {
+    width: 42px; height: 42px; flex-shrink: 0;
+    background: var(--bg-hover); border: 0.5px solid var(--border);
+    border-radius: 5px; display: flex; align-items: center;
+    justify-content: center; font-size: 20px; color: var(--green);
+  }
+  .d-name { font-size: 13px; color: var(--green); font-weight: 500; }
+  .d-sub { font-size: 10px; color: var(--green-dim); margin-top: 2px; }
+  .d-badge {
+    margin-left: auto; font-size: 9px; padding: 3px 9px;
+    border-radius: 3px; letter-spacing: 1px; flex-shrink: 0;
+  }
+  .badge-red { background: #2a0f0f; color: #ff6666; border: 0.5px solid #ff444433; }
+  .badge-amber { background: #2a1a00; color: #f0a040; border: 0.5px solid #f0c04033; }
+  .badge-green { background: #0a1f0a; color: #66cc66; border: 0.5px solid #00ff4133; }
+
+  .d-specs {
+    display: grid; gap: 8px; margin-bottom: 10px;
+  }
+  .d-specs-4 { grid-template-columns: repeat(4, 1fr); }
+  .d-specs-3 { grid-template-columns: repeat(3, 1fr); }
+  .spec {
+    background: var(--bg-card); border: 0.5px solid var(--border);
+    border-radius: 4px; padding: 6px 8px;
+  }
+  .spec-l { font-size: 9px; color: var(--green-dim); letter-spacing: 1px; }
+  .spec-v { font-size: 11px; color: var(--green-mid); margin-top: 2px; }
+
+  .vuln-row { display: flex; flex-wrap: wrap; gap: 5px; }
+  .vt { font-size: 9px; padding: 2px 8px; border-radius: 3px; letter-spacing: 0.5px; }
+  .vt-high { background: #2a0f0f; color: #ff7777; border: 0.5px solid #ff444433; }
+  .vt-med  { background: #261800; color: #f0a040; border: 0.5px solid #f0c04033; }
+  .vt-low  { background: #0a1a0a; color: #66cc66; border: 0.5px solid #00ff4122; }
+  .vt-info { background: #0a1525; color: #55aaff; border: 0.5px solid #4499dd33; }
+
+  /* Phone card */
+  .phone-row { display: flex; gap: 12px; align-items: flex-start; }
+  .phone-svg { flex-shrink: 0; }
+  .toggle-parts {
+    display: inline-block; margin-top: 8px;
+    font-size: 9px; color: var(--green-dim);
+    padding: 3px 9px; border: 0.5px solid var(--border);
+    border-radius: 3px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .toggle-parts:hover { color: var(--green); border-color: var(--border-bright); }
+  .parts-grid {
+    display: none; margin-top: 10px;
+    grid-template-columns: repeat(2, 1fr); gap: 5px;
+  }
+  .parts-grid.open { display: grid; }
+  .part {
+    font-size: 10px; color: var(--green-mid);
+    padding: 5px 8px; background: var(--bg-card);
+    border: 0.5px solid var(--border); border-radius: 3px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .part i { font-size: 12px; }
+
+  /* ─── DETAIL PANEL (25%) ─── */
+  #detail {
+    width: 25%; padding: 14px 12px;
+    display: flex; flex-direction: column; gap: 10px;
+    overflow-y: auto;
+  }
+  .det-label {
+    font-size: 9px; color: var(--green-dim);
+    letter-spacing: 2px; margin-bottom: 5px;
+  }
+  .det-card {
+    background: var(--bg-deep);
+    border: 0.5px solid var(--border);
+    border-radius: 5px; padding: 10px 12px;
+  }
+  .det-row {
+    font-size: 11px; color: var(--green-mid);
+    padding: 3px 0; border-bottom: 0.5px solid var(--border);
+    display: flex; justify-content: space-between;
+  }
+  .det-row:last-child { border-bottom: none; }
+  .det-row span { color: var(--green); text-align: right; max-width: 55%; word-break: break-all; }
+
+  .risk-num { font-family: var(--head); font-size: 28px; font-weight: 700; }
+  .risk-lbl { font-size: 9px; color: var(--green-dim); letter-spacing: 2px; margin-top: 2px; margin-bottom: 8px; }
+  .bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s; }
+  .bar-green { background: var(--green); }
+  .bar-amber { background: var(--amber); }
+  .bar-red   { background: var(--red); }
+  .res-label { font-size: 9px; color: var(--green-dim); margin: 7px 0 3px; letter-spacing: 1px; }
+
+  .act-btn {
+    width: 100%; padding: 7px 10px; margin-bottom: 5px;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--green-mid); background: transparent;
+    border: 0.5px solid var(--border); border-radius: 3px;
+    cursor: pointer; display: flex; align-items: center; gap: 7px;
+    transition: all 0.15s; text-align: left;
+  }
+  .act-btn:hover { border-color: var(--green); color: var(--green); background: var(--bg-hover); }
+  .act-btn i { font-size: 14px; }
+  .act-btn:last-child { margin-bottom: 0; }
+
+  /* ─── MODAL ─── */
+  #modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.75);
+    align-items: center; justify-content: center;
+  }
+  #modal-overlay.open { display: flex; }
+  #modal {
+    background: var(--bg-deep);
+    border: 0.5px solid var(--green);
+    border-radius: 8px;
+    width: 580px; max-width: 90vw;
+    max-height: 80vh; overflow-y: auto;
+    box-shadow: 0 0 40px #00ff4111;
+    animation: modal-in 0.2s ease;
+  }
+  @keyframes modal-in { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:scale(1); } }
+  #modal-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 18px; border-bottom: 0.5px solid var(--border);
+  }
+  #modal-icon { font-size: 18px; color: var(--green); }
+  #modal-title { font-family: var(--head); font-size: 12px; letter-spacing: 2px; color: var(--green); }
+  #modal-close {
+    margin-left: auto; font-size: 18px; color: var(--green-dim);
+    cursor: pointer; transition: color 0.15s;
+    background: none; border: none; font-family: var(--mono);
+  }
+  #modal-close:hover { color: var(--green); }
+  #modal-body { padding: 18px; }
+
+  /* modal sub-styles */
+  .m-section { margin-bottom: 16px; }
+  .m-title { font-size: 9px; color: var(--green-dim); letter-spacing: 2px; margin-bottom: 8px; }
+  .m-row {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--green-mid);
+    padding: 4px 0; border-bottom: 0.5px solid var(--border);
+  }
+  .m-row:last-child { border-bottom: none; }
+  .m-row span { color: var(--green); }
+  .m-vuln {
+    background: var(--bg-card); border: 0.5px solid var(--border);
+    border-radius: 4px; padding: 10px 12px; margin-bottom: 8px;
+  }
+  .m-vuln-name { font-size: 11px; color: var(--red); margin-bottom: 4px; }
+  .m-vuln-desc { font-size: 10px; color: var(--green-dim); line-height: 1.6; }
+  .m-vuln-meta { font-size: 9px; color: var(--green-dim); margin-top: 5px; letter-spacing: 1px; }
+  .m-vuln.med .m-vuln-name { color: var(--amber); }
+  .m-vuln.low .m-vuln-name { color: var(--green-mid); }
+  .m-vuln.info .m-vuln-name { color: var(--blue); }
+  .terminal-box {
+    background: #000; border: 0.5px solid var(--border);
+    border-radius: 4px; padding: 12px 14px;
+    font-size: 11px; line-height: 1.8;
+  }
+  .t-prompt { color: var(--green-dim); }
+  .t-cmd { color: var(--green); }
+  .t-out { color: #55aa55; }
+  .t-warn { color: var(--amber); }
+  .t-err { color: var(--red); }
+  .t-cursor { display: inline-block; width: 7px; height: 12px; background: var(--green); vertical-align: -2px; animation: blink 0.8s step-end infinite; }
+  .traffic-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 0; border-bottom: 0.5px solid var(--border);
+    font-size: 10px;
+  }
+  .traffic-row:last-child { border-bottom: none; }
+  .t-proto {
+    font-size: 8px; padding: 2px 6px; border-radius: 2px;
+    min-width: 40px; text-align: center;
+  }
+  .tp-tcp { background: #0a1f0a; color: var(--green); border: 0.5px solid #00ff4133; }
+  .tp-udp { background: #0a1525; color: var(--blue); border: 0.5px solid #4499dd33; }
+  .tp-http { background: #2a1a00; color: var(--amber); border: 0.5px solid #f0c04033; }
+  .t-src { color: var(--green-mid); }
+  .t-arrow { color: var(--green-dim); }
+  .t-dst { color: var(--green); }
+  .t-size { margin-left: auto; color: var(--green-dim); font-size: 9px; }
+  .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .rep-stat { background: var(--bg-card); border: 0.5px solid var(--border); border-radius: 4px; padding: 10px; }
+  .rep-stat .n { font-family: var(--head); font-size: 20px; color: var(--green); }
+  .rep-stat .l { font-size: 9px; color: var(--green-dim); letter-spacing: 1px; margin-top: 2px; }
+  .rep-stat.red .n { color: var(--red); }
+  .rep-stat.amber .n { color: var(--amber); }
+
+  /* ─── SCROLLBARS ─── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ─── NETWORK MAP TAB ─── */
+  #tab-network { display: none; flex: 1; align-items: center; justify-content: center; }
+  #tab-network.show { display: flex; }
+  #tab-log { display: none; flex-direction: column; flex: 1; padding: 16px; gap: 3px; overflow-y: auto; }
+  #tab-log.show { display: flex; }
+  .log-line { font-size: 11px; color: var(--green-dim); line-height: 1.7; }
+  .log-line .ts { color: #224422; }
+  .log-line .ok { color: var(--green); }
+  .log-line .wn { color: var(--amber); }
+  .log-line .er { color: var(--red); }
+  .log-line .inf { color: var(--blue); }
+
+  /* ─── NETWORK MAP SVG ─── */
+  #netmap { width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+
+<!-- BOOT SCREEN -->
+<div id="boot">
+  <div id="boot-title">NEXUS RECON OS</div>
+  <div id="boot-lines"></div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <!-- HEADER -->
+  <div id="header">
+    <div class="header-title">NEXUS RECON</div>
+    <div class="header-sep"></div>
+    <div class="header-stat">subnet <span>192.168.1.0/24</span></div>
+    <div class="header-sep"></div>
+    <div class="header-stat">targets <span id="hdr-targets">3</span></div>
+    <div class="header-sep"></div>
+    <div class="header-stat">vulns <span id="hdr-vulns" style="color:var(--red)">6</span></div>
+    <div class="header-right">
+      <div class="live-dot"></div>
+      <div class="live-label">LIVE SCAN</div>
+      <div class="header-sep"></div>
+      <div class="clock" id="clock">00:00:00</div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div id="body">
+
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <div class="sb-header"><i class="ti ti-tool"></i> TOOLKIT</div>
+
+      <div class="sb-cat">RECON</div>
+      <div class="sb-item active" onclick="setSbActive(this)"><i class="ti ti-radar"></i>Nmap Scanner<span class="sb-dot"></span></div>
+      <div class="sb-item" onclick="setSbActive(this)"><i class="ti ti-world-search"></i>DNS Enum<span class="sb-dot"></span></div>
+      <div class="sb-item" onclick="setSbActive(this)"><i class="ti ti-fingerprint"></i>OS Fingerprint<span class="sb-dot"></span></div>
+
+      <div class="sb-cat">ANALYSIS</div>
+      <div class="sb-item" onclick="setSbActive(this)"><i class="ti ti-bug"></i>Vuln Scanner<span class="sb-badge">3</span></div>
+      <div class="sb-item" onclick="setSbActive(this)"><i class="ti ti-lock-open"></i>Port Inspector<span class="sb-dot"></span></div>
+      <div class="sb-item" onclick="setSbActive(this)"><i class="ti ti-certificate"></i>SSL Analyzer<span class="sb-dot"></span></div>
+
+      <div class="sb-cat">NETWORK</div>
+      <div class="sb-item" onclick="setSbActive(this)"><i class="ti ti-antenna"></i>WiFi Adapter<span class="sb-dot"></span></div>
+      <div class="sb-item" onclick="setSbActive(this)"><i class="ti ti-arrows-transfer-down"></i>Packet Capture<span class="sb-dot"></span></div>
+      <div class="sb-item" onclick="setSbActive(this)"><i class="ti ti-topology-star"></i>Net Mapper<span class="sb-dot"></span></div>
+
+      <div class="sb-cat">EXPLOIT</div>
+      <div class="sb-item" onclick="setSbActive(this)"><i class="ti ti-terminal-2"></i>Metasploit<span class="sb-dot"></span></div>
+      <div class="sb-item" onclick="setSbActive(this)"><i class="ti ti-code-dots"></i>SQLmap<span class="sb-dot"></span></div>
+      <div class="sb-item" onclick="setSbActive(this)"><i class="ti ti-password"></i>Hashcat<span class="sb-dot"></span></div>
+
+      <div class="sb-cat">MOBILE</div>
+      <div class="sb-item" onclick="setSbActive(this)"><i class="ti ti-device-mobile"></i>APK Analyzer<span class="sb-dot"></span></div>
+      <div class="sb-item" onclick="setSbActive(this)"><i class="ti ti-bluetooth"></i>BT Scanner<span class="sb-dot"></span></div>
+    </div>
+
+    <!-- CONTENT -->
+    <div id="content">
+      <div id="tabbar">
+        <div class="tab active" onclick="switchTab('targets', this)">targets (3)</div>
+        <div class="tab" onclick="switchTab('network', this)">network map</div>
+        <div class="tab" onclick="switchTab('log', this)">log</div>
+        <div id="tab-right">
+          <button class="scan-btn" onclick="openModal('scan')"><i class="ti ti-refresh"></i>rescan</button>
+          <button class="scan-btn" onclick="openModal('report')"><i class="ti ti-file-report"></i>full report</button>
+        </div>
+      </div>
+
+      <!-- TARGETS TAB -->
+      <div id="tab-targets" style="display:flex; flex:1; overflow:hidden;">
+        <div id="device-list">
+
+          <!-- PC -->
+          <div class="d-card selected" onclick="selectDevice(this,'pc')">
+            <div class="d-header">
+              <div class="d-icon"><i class="ti ti-device-desktop"></i></div>
+              <div>
+                <div class="d-name">DESKTOP-A7F2K9</div>
+                <div class="d-sub">192.168.1.104 &nbsp;·&nbsp; Windows 11 Pro &nbsp;·&nbsp; x86_64 &nbsp;·&nbsp; MAC: A4:C3:F0:22:1B</div>
+              </div>
+              <div class="d-badge badge-red">3 CRITICAL</div>
+            </div>
+            <div class="d-specs d-specs-4">
+              <div class="spec"><div class="spec-l">CPU</div><div class="spec-v">i7-12700K</div></div>
+              <div class="spec"><div class="spec-l">RAM</div><div class="spec-v">16 GB DDR5</div></div>
+              <div class="spec"><div class="spec-l">OPEN PORTS</div><div class="spec-v">22, 80, 445</div></div>
+              <div class="spec"><div class="spec-l">UPTIME</div><div class="spec-v">14d 6h</div></div>
+            </div>
+            <div class="vuln-row">
+              <span class="vt vt-high">SMBv1 ENABLED</span>
+              <span class="vt vt-high">RDP EXPOSED</span>
+              <span class="vt vt-high">NO FIREWALL</span>
+              <span class="vt vt-med">OUTDATED SSL</span>
+              <span class="vt vt-med">WEAK SSH KEY</span>
+              <span class="vt vt-low">SNMP PUBLIC</span>
+            </div>
+          </div>
+
+          <!-- PHONE -->
+          <div class="d-card" onclick="selectDevice(this,'phone')">
+            <div class="d-header">
+              <div class="d-icon"><i class="ti ti-device-mobile"></i></div>
+              <div>
+                <div class="d-name">Galaxy S24 Ultra</div>
+                <div class="d-sub">192.168.1.107 &nbsp;·&nbsp; Android 14 &nbsp;·&nbsp; ARM64 &nbsp;·&nbsp; MAC: B8:27:EB:4A:FF</div>
+              </div>
+              <div class="d-badge badge-amber">2 MEDIUM</div>
+            </div>
+            <div class="phone-row">
+              <div class="phone-svg">
+                <svg width="54" height="92" viewBox="0 0 54 92">
+                  <rect x="2" y="2" width="50" height="88" rx="9" fill="#0a1a0a" stroke="#336633" stroke-width="0.5"/>
+                  <rect x="9" y="11" width="36" height="57" rx="2" fill="#0f2a0f" stroke="#1a3a1a" stroke-width="0.5"/>
+                  <circle cx="27" cy="82" r="4.5" fill="#0f2a0f" stroke="#336633" stroke-width="0.5"/>
+                  <rect x="19" y="5.5" width="16" height="3" rx="1.5" fill="#336633"/>
+                  <rect x="11" y="14" width="32" height="51" rx="1" fill="#060c06"/>
+                  <text x="27" y="43" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#00ff41">ANDROID</text>
+                  <text x="27" y="54" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="6" fill="#336633">14.0</text>
+                  <rect x="49" y="22" width="3" height="8" rx="1" fill="#1a2a1a"/>
+                  <rect x="2" y="26" width="3" height="6" rx="1" fill="#1a2a1a"/>
+                  <rect x="2" y="36" width="3" height="6" rx="1" fill="#1a2a1a"/>
+                </svg>
+              </div>
+              <div style="flex:1;">
+                <div class="d-specs d-specs-4" style="margin-bottom:10px;">
+                  <div class="spec"><div class="spec-l">SoC</div><div class="spec-v">SD 8 Gen 3</div></div>
+                  <div class="spec"><div class="spec-l">RAM</div><div class="spec-v">12 GB</div></div>
+                  <div class="spec"><div class="spec-l">STORAGE</div><div class="spec-v">256 GB</div></div>
+                  <div class="spec"><div class="spec-l">SERVICES</div><div class="spec-v">ADB, BT</div></div>
+                </div>
+                <div class="vuln-row">
+                  <span class="vt vt-med">ADB OPEN</span>
+                  <span class="vt vt-med">BT DISCOVERABLE</span>
+                  <span class="vt vt-low">UNKNOWN APKs</span>
+                  <span class="vt vt-info">ROOT DETECTED</span>
+                </div>
+                <div class="toggle-parts" onclick="toggleParts(event)">▶ show internal components</div>
+                <div class="parts-grid" id="phone-parts">
+                  <div class="part"><i class="ti ti-cpu"></i>Snapdragon 8 Gen 3</div>
+                  <div class="part"><i class="ti ti-battery-charging"></i>5000 mAh battery</div>
+                  <div class="part"><i class="ti ti-antenna"></i>5G / WiFi 6E modem</div>
+                  <div class="part"><i class="ti ti-bluetooth"></i>Bluetooth 5.3</div>
+                  <div class="part"><i class="ti ti-camera"></i>200MP camera array</div>
+                  <div class="part"><i class="ti ti-fingerprint"></i>Ultrasonic fingerprint</div>
+                  <div class="part"><i class="ti ti-sim"></i>Dual SIM + eSIM</div>
+                  <div class="part"><i class="ti ti-circuit-cell"></i>NFC module</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ROUTER -->
+          <div class="d-card" onclick="selectDevice(this,'router')">
+            <div class="d-header">
+              <div class="d-icon"><i class="ti ti-router"></i></div>
+              <div>
+                <div class="d-name">ASUS RT-AX88U</div>
+                <div class="d-sub">192.168.1.1 &nbsp;·&nbsp; AsusWRT 3.0.0.4.388 &nbsp;·&nbsp; MIPS &nbsp;·&nbsp; MAC: 00:1A:2B:3C:4D:5E</div>
+              </div>
+              <div class="d-badge badge-green">PATCHED</div>
+            </div>
+            <div class="d-specs d-specs-4">
+              <div class="spec"><div class="spec-l">FIRMWARE</div><div class="spec-v">3.0.0.4.388</div></div>
+              <div class="spec"><div class="spec-l">PORTS OPEN</div><div class="spec-v">80, 443</div></div>
+              <div class="spec"><div class="spec-l">ENCRYPTION</div><div class="spec-v">WPA3</div></div>
+              <div class="spec"><div class="spec-l">CLIENTS</div><div class="spec-v">9 active</div></div>
+            </div>
+            <div class="vuln-row">
+              <span class="vt vt-low">HTTP ADMIN ON</span>
+              <span class="vt vt-info">DEFAULT DNS</span>
+              <span class="vt vt-info">UPNP ENABLED</span>
+            </div>
+          </div>
+
+        </div><!-- /device-list -->
+
+        <!-- DETAIL PANEL -->
+        <div id="detail">
+          <div>
+            <div class="det-label">// SELECTED DEVICE</div>
+            <div class="det-card">
+              <div class="det-row">Device <span id="d-name">DESKTOP-A7F2K9</span></div>
+              <div class="det-row">OS <span id="d-os">Windows 11 Pro</span></div>
+              <div class="det-row">IP <span id="d-ip">192.168.1.104</span></div>
+              <div class="det-row">MAC <span id="d-mac">A4:C3:F0:22:1B</span></div>
+              <div class="det-row">Arch <span id="d-arch">x86_64</span></div>
+            </div>
+          </div>
+          <div>
+            <div class="det-label">// RISK SCORE</div>
+            <div class="det-card">
+              <div class="risk-num" id="risk-num" style="color:var(--red)">87</div>
+              <div class="risk-lbl" id="risk-lbl">CRITICAL</div>
+              <div class="bar"><div class="bar-fill bar-red" id="risk-bar" style="width:87%"></div></div>
+            </div>
+          </div>
+          <div>
+            <div class="det-label">// RESOURCES</div>
+            <div class="det-card">
+              <div class="res-label">CPU LOAD</div>
+              <div class="bar"><div class="bar-fill bar-amber" style="width:62%"></div></div>
+              <div class="res-label">MEM USAGE</div>
+              <div class="bar"><div class="bar-fill bar-green" style="width:41%"></div></div>
+              <div class="res-label">DISK USAGE</div>
+              <div class="bar"><div class="bar-fill bar-red" style="width:91%"></div></div>
+            </div>
+          </div>
+          <div>
+            <div class="det-label">// ACTIONS</div>
+            <button class="act-btn" onclick="openModal('scan')"><i class="ti ti-radar"></i>Run deep scan</button>
+            <button class="act-btn" onclick="openModal('report')"><i class="ti ti-file-report"></i>Export report</button>
+            <button class="act-btn" onclick="openModal('shell')"><i class="ti ti-terminal-2"></i>Open shell</button>
+            <button class="act-btn" onclick="openModal('traffic')"><i class="ti ti-eye"></i>Monitor traffic</button>
+          </div>
+        </div>
+
+      </div><!-- /tab-targets -->
+
+      <!-- NETWORK MAP TAB -->
+      <div id="tab-network">
+        <svg id="netmap" viewBox="0 0 600 380">
+          <defs>
+            <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 Z" fill="#336633"/>
+            </marker>
+          </defs>
+          <!-- Lines -->
+          <line x1="300" y1="180" x2="180" y2="280" stroke="#1a2a1a" stroke-width="1" marker-end="url(#arr)"/>
+          <line x1="300" y1="180" x2="420" y2="280" stroke="#1a2a1a" stroke-width="1" marker-end="url(#arr)"/>
+          <line x1="300" y1="180" x2="120" y2="120" stroke="#1a2a1a" stroke-width="1" marker-end="url(#arr)"/>
+          <line x1="300" y1="180" x2="480" y2="100" stroke="#1a2a1a" stroke-width="1" marker-end="url(#arr)"/>
+          <!-- Internet cloud -->
+          <ellipse cx="300" cy="50" rx="60" ry="25" fill="#0a1a0a" stroke="#336633" stroke-width="0.5"/>
+          <text x="300" y="54" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="9" fill="#336633">INTERNET</text>
+          <line x1="300" y1="75" x2="300" y2="130" stroke="#336633" stroke-width="0.5" stroke-dasharray="4,3"/>
+          <!-- Router (gateway) -->
+          <rect x="268" y="130" width="64" height="46" rx="4" fill="#0f2a0f" stroke="#00ff41" stroke-width="0.5"/>
+          <text x="300" y="149" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="8" fill="#00ff41">ROUTER</text>
+          <text x="300" y="161" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#336633">.1.1</text>
+          <text x="300" y="172" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#55aa55">PATCHED</text>
+          <!-- PC -->
+          <rect x="148" y="262" width="64" height="46" rx="4" fill="#1a0505" stroke="#ff4444" stroke-width="0.5"/>
+          <text x="180" y="281" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="8" fill="#ff6666">PC</text>
+          <text x="180" y="293" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#664444">.1.104</text>
+          <text x="180" y="304" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#ff4444">CRITICAL</text>
+          <!-- Phone -->
+          <rect x="388" y="262" width="64" height="46" rx="4" fill="#1a1200" stroke="#f0c040" stroke-width="0.5"/>
+          <text x="420" y="281" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="8" fill="#f0a040">PHONE</text>
+          <text x="420" y="293" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#665500">.1.107</text>
+          <text x="420" y="304" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#f0c040">MEDIUM</text>
+          <!-- Unknown -->
+          <rect x="88" y="100" width="64" height="46" rx="4" fill="#0a100a" stroke="#336633" stroke-width="0.5" stroke-dasharray="3,2"/>
+          <text x="120" y="119" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="8" fill="#336633">UNKNOWN</text>
+          <text x="120" y="131" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#224422">.1.???</text>
+          <text x="120" y="142" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#336633">SCANNING</text>
+          <!-- Smart TV -->
+          <rect x="448" y="82" width="64" height="46" rx="4" fill="#0a0f1a" stroke="#4499dd" stroke-width="0.5"/>
+          <text x="480" y="101" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="8" fill="#55aaff">SMART TV</text>
+          <text x="480" y="113" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#224466">.1.112</text>
+          <text x="480" y="124" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#4499dd">INFO</text>
+        </svg>
+      </div>
+
+      <!-- LOG TAB -->
+      <div id="tab-log" style="overflow-y:auto;"></div>
+
+    </div><!-- /content -->
+  </div><!-- /body -->
+</div><!-- /app -->
+
+<!-- MODAL -->
+<div id="modal-overlay" onclick="closeModalOutside(event)">
+  <div id="modal">
+    <div id="modal-header">
+      <i class="ti" id="modal-icon"></i>
+      <div id="modal-title"></div>
+      <button id="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ─── BOOT SEQUENCE ───
+const bootData = [
+  ['', 'NEXUS RECON OS v4.1.7 — INITIALIZING...'],
+  ['ok', 'Loading kernel modules'],
+  ['ok', 'Mounting filesystems'],
+  ['ok', 'Starting network services'],
+  ['warn', 'Network adapter wlan0 detected — monitor mode available'],
+  ['ok', 'Bluetooth adapter hci0 online'],
+  ['ok', 'Initializing recon toolkit'],
+  ['ok', 'Loading vulnerability database [CVE-2025]'],
+  ['warn', '3 targets found on local subnet 192.168.1.0/24'],
+  ['ok', 'Device fingerprinting complete'],
+  ['ok', 'Interface ready'],
+  ['', '──────────────────────────────────────────'],
+];
+
+const bootEl = document.getElementById('boot-lines');
+const bootTitle = document.getElementById('boot-title');
+let bi = 0;
+
+function bootStep() {
+  if (bi === 0) bootTitle.classList.add('show');
+  if (bi < bootData.length) {
+    const [type, text] = bootData[bi];
+    const line = document.createElement('div');
+    line.className = 'boot-line';
+    if (type === 'ok') line.innerHTML = `[ <span class="ok">OK</span> ] ${text}`;
+    else if (type === 'warn') line.innerHTML = `[ <span class="warn">!!</span> ] ${text}`;
+    else line.textContent = text;
+    bootEl.appendChild(line);
+    setTimeout(() => line.classList.add('show'), 20);
+    bi++;
+    setTimeout(bootStep, bi < 4 ? 100 : bi < 9 ? 160 : 200);
+  } else {
+    // cursor line
+    const cur = document.createElement('div');
+    cur.className = 'boot-line show';
+    cur.innerHTML = '> <span id="boot-cursor" style="display:inline-block;width:9px;height:13px;background:var(--green);vertical-align:-3px;animation:blink 0.8s step-end infinite;"></span>';
+    bootEl.appendChild(cur);
+    setTimeout(() => {
+      document.getElementById('boot').classList.add('fade-out');
+      setTimeout(() => {
+        document.getElementById('boot').style.display = 'none';
+        document.getElementById('app').classList.add('show');
+        startLog();
+      }, 520);
+    }, 800);
+  }
+}
+setTimeout(bootStep, 400);
+
+// ─── CLOCK ───
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    [now.getHours(), now.getMinutes(), now.getSeconds()]
+      .map(n => String(n).padStart(2,'0')).join(':');
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ─── TABS ───
+function switchTab(name, el) {
+  ['targets','network','log'].forEach(t => {
+    const tab = document.getElementById('tab-' + t);
+    if (tab) { tab.style.display = 'none'; tab.classList.remove('show'); }
+  });
+  const target = document.getElementById('tab-' + name);
+  if (name === 'targets') target.style.display = 'flex';
+  else if (name === 'network') { target.style.display = 'flex'; target.classList.add('show'); }
+  else { target.style.display = 'flex'; target.classList.add('show'); }
+
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ─── SIDEBAR ───
+function setSbActive(el) {
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ─── DEVICE SELECT ───
+const devices = {
+  pc: { name:'DESKTOP-A7F2K9', os:'Windows 11 Pro', ip:'192.168.1.104', mac:'A4:C3:F0:22:1B', arch:'x86_64', risk:87, rl:'CRITICAL', rc:'var(--red)', rb:'bar-red' },
+  phone: { name:'Galaxy S24 Ultra', os:'Android 14', ip:'192.168.1.107', mac:'B8:27:EB:4A:FF', arch:'ARM64', risk:54, rl:'MEDIUM', rc:'var(--amber)', rb:'bar-amber' },
+  router: { name:'ASUS RT-AX88U', os:'AsusWRT 3.0.0.4.388', ip:'192.168.1.1', mac:'00:1A:2B:3C:4D:5E', arch:'MIPS', risk:22, rl:'LOW', rc:'var(--green)', rb:'bar-green' },
+};
+let selectedDevice = 'pc';
+
+function selectDevice(el, key) {
+  document.querySelectorAll('.d-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedDevice = key;
+  const d = devices[key];
+  document.getElementById('d-name').textContent = d.name;
+  document.getElementById('d-os').textContent = d.os;
+  document.getElementById('d-ip').textContent = d.ip;
+  document.getElementById('d-mac').textContent = d.mac;
+  document.getElementById('d-arch').textContent = d.arch;
+  document.getElementById('risk-num').textContent = d.risk;
+  document.getElementById('risk-num').style.color = d.rc;
+  document.getElementById('risk-lbl').textContent = d.rl;
+  const bar = document.getElementById('risk-bar');
+  bar.style.width = d.risk + '%';
+  bar.className = 'bar-fill ' + d.rb;
+}
+
+// ─── PHONE TOGGLE ───
+function toggleParts(e) {
+  e.stopPropagation();
+  const parts = document.getElementById('phone-parts');
+  const btn = e.target;
+  const open = parts.classList.toggle('open');
+  btn.textContent = open ? '▼ hide internal components' : '▶ show internal components';
+}
+
+// ─── MODALS ───
+const modalDefs = {
+  scan: {
+    icon: 'ti-radar', title: 'DEEP SCAN',
+    build(d) {
+      const dev = devices[selectedDevice];
+      return `
+        <div class="m-section">
+          <div class="m-title">// TARGET</div>
+          <div class="det-card">
+            <div class="m-row">Device <span>${dev.name}</span></div>
+            <div class="m-row">IP <span>${dev.ip}</span></div>
+            <div class="m-row">Scan mode <span>SYN + UDP + version</span></div>
+            <div class="m-row">Estimated time <span>~45 sec</span></div>
+          </div>
+        </div>
+        <div class="m-section">
+          <div class="m-title">// SCAN OUTPUT</div>
+          <div class="terminal-box">
+            <div><span class="t-prompt">$ </span><span class="t-cmd">nmap -sS -sU -sV -O ${dev.ip}</span></div>
+            <div class="t-out">Starting Nmap 7.95 ( https://nmap.org )</div>
+            <div class="t-out">Scan report for ${dev.ip}</div>
+            <div class="t-out">Host is up (0.0012s latency).</div>
+            <div class="t-out">PORT      STATE  SERVICE    VERSION</div>
+            <div class="t-out">22/tcp    open   ssh        OpenSSH 8.2</div>
+            <div class="t-out">80/tcp    open   http       Apache 2.4.51</div>
+            <div class="t-out">445/tcp   open   microsoft-ds</div>
+            <div class="t-warn">WARNING: SMBv1 protocol detected</div>
+            <div class="t-warn">WARNING: RDP service on port 3389</div>
+            <div class="t-out">OS guess: Windows 11 (98%)</div>
+            <div class="t-out">Nmap done — 1 IP scanned in 38.42s</div>
+            <div><span class="t-prompt">$ </span><span class="t-cursor"></span></div>
+          </div>
+        </div>`;
+    }
+  },
+  report: {
+    icon: 'ti-file-report', title: 'EXPORT REPORT',
+    build(d) {
+      const dev = devices[selectedDevice];
+      return `
+        <div class="m-section">
+          <div class="m-title">// SUMMARY — ${dev.name}</div>
+          <div class="report-grid">
+            <div class="rep-stat red"><div class="n">3</div><div class="l">CRITICAL VULNS</div></div>
+            <div class="rep-stat amber"><div class="n">2</div><div class="l">MEDIUM VULNS</div></div>
+            <div class="rep-stat"><div class="n">1</div><div class="l">LOW FINDINGS</div></div>
+            <div class="rep-stat"><div class="n">${dev.risk}</div><div class="l">RISK SCORE</div></div>
+          </div>
+        </div>
+        <div class="m-section">
+          <div class="m-title">// VULNERABILITY DETAILS</div>
+          <div class="m-vuln">
+            <div class="m-vuln-name">CVE-2017-0144 — SMBv1 Remote Code Execution</div>
+            <div class="m-vuln-desc">EternalBlue exploit target. SMBv1 is enabled and reachable on port 445. Allows unauthenticated remote code execution. Used by WannaCry / NotPetya.</div>
+            <div class="m-vuln-meta">SEVERITY: CRITICAL &nbsp;·&nbsp; CVSS: 9.3 &nbsp;·&nbsp; FIX: Disable SMBv1 in Windows Features</div>
+          </div>
+          <div class="m-vuln">
+            <div class="m-vuln-name">CVE-2019-0708 — BlueKeep RDP Pre-Auth RCE</div>
+            <div class="m-vuln-desc">Remote Desktop Protocol exposed on port 3389 without NLA. Wormable pre-auth vulnerability allowing full system compromise.</div>
+            <div class="m-vuln-meta">SEVERITY: CRITICAL &nbsp;·&nbsp; CVSS: 9.8 &nbsp;·&nbsp; FIX: Enable NLA, restrict RDP to VPN</div>
+          </div>
+          <div class="m-vuln med">
+            <div class="m-vuln-name">WEAK-SSH-001 — RSA-1024 Key Detected</div>
+            <div class="m-vuln-desc">SSH service using RSA 1024-bit key, below the 2048-bit minimum recommended by NIST. Susceptible to factoring attacks.</div>
+            <div class="m-vuln-meta">SEVERITY: MEDIUM &nbsp;·&nbsp; FIX: Regenerate key pair with RSA-4096 or Ed25519</div>
+          </div>
+          <div class="m-vuln low">
+            <div class="m-vuln-name">SNMP-PUBLIC — Community String Exposed</div>
+            <div class="m-vuln-desc">SNMP responding to "public" community string. Leaks system information including interface config and routing tables.</div>
+            <div class="m-vuln-meta">SEVERITY: LOW &nbsp;·&nbsp; FIX: Disable SNMP or change community string</div>
+          </div>
+        </div>`;
+    }
+  },
+  shell: {
+    icon: 'ti-terminal-2', title: 'REMOTE SHELL',
+    build(d) {
+      const dev = devices[selectedDevice];
+      return `
+        <div class="m-section">
+          <div class="m-title">// SESSION — ${dev.ip}</div>
+          <div class="terminal-box" style="min-height:220px;">
+            <div><span class="t-prompt">nexus@recon</span><span class="t-out">:~$ </span><span class="t-cmd">ssh -i ~/.ssh/id_ed25519 user@${dev.ip}</span></div>
+            <div class="t-out">Welcome to ${dev.name}</div>
+            <div class="t-out">Last login: Thu Jun 5 19:42:11 2025</div>
+            <div><span class="t-prompt">user@${dev.name.toLowerCase()}</span><span class="t-out">:~$ </span><span class="t-cmd">uname -a</span></div>
+            <div class="t-out">Windows 11 Pro 10.0.22631 x86_64</div>
+            <div><span class="t-prompt">user@${dev.name.toLowerCase()}</span><span class="t-out">:~$ </span><span class="t-cmd">netstat -an | grep LISTEN</span></div>
+            <div class="t-out">TCP 0.0.0.0:22   LISTENING</div>
+            <div class="t-out">TCP 0.0.0.0:80   LISTENING</div>
+            <div class="t-warn">TCP 0.0.0.0:445  LISTENING  ← SMBv1</div>
+            <div class="t-warn">TCP 0.0.0.0:3389 LISTENING  ← RDP</div>
+            <div><span class="t-prompt">user@${dev.name.toLowerCase()}</span><span class="t-out">:~$ </span><span class="t-cursor"></span></div>
+          </div>
+        </div>
+        <div style="font-size:10px; color:var(--green-dim); margin-top:8px;">
+          Note: In the real hosted version this would pipe to a backend WebSocket shell session.
+        </div>`;
+    }
+  },
+  traffic: {
+    icon: 'ti-eye', title: 'TRAFFIC MONITOR',
+    build(d) {
+      const dev = devices[selectedDevice];
+      const rows = [
+        ['TCP','192.168.1.104','8.8.8.8:443','1.2 KB'],
+        ['HTTP','192.168.1.104','172.217.3.110:80','4.8 KB'],
+        ['TCP','10.0.0.1','192.168.1.104:22','320 B'],
+        ['UDP','192.168.1.104','1.1.1.1:53','68 B'],
+        ['TCP','192.168.1.104','52.114.75.200:443','9.1 KB'],
+        ['UDP','192.168.1.104','224.0.0.251:5353','112 B'],
+        ['HTTP','192.168.1.104','192.168.1.1:80','256 B'],
+        ['TCP','192.168.1.107','192.168.1.104:445','2.4 KB'],
+      ];
+      const protoClass = { TCP:'tp-tcp', HTTP:'tp-http', UDP:'tp-udp' };
+      const rowsHtml = rows.map(([proto,src,dst,sz]) =>
+        `<div class="traffic-row">
+          <span class="t-proto ${protoClass[proto]}">${proto}</span>
+          <span class="t-src">${src}</span>
+          <span class="t-arrow">→</span>
+          <span class="t-dst">${dst}</span>
+          <span class="t-size">${sz}</span>
+        </div>`
+      ).join('');
+      return `
+        <div class="m-section">
+          <div class="m-title">// LIVE PACKETS — ${dev.ip}</div>
+          <div class="det-card">${rowsHtml}</div>
+        </div>
+        <div class="m-section">
+          <div class="m-title">// STATS</div>
+          <div class="report-grid">
+            <div class="rep-stat"><div class="n">847</div><div class="l">PACKETS / MIN</div></div>
+            <div class="rep-stat amber"><div class="n">3</div><div class="l">SUSPICIOUS CONNS</div></div>
+          </div>
+        </div>
+        <div style="font-size:10px; color:var(--green-dim); margin-top:4px;">
+          Note: Real capture requires backend running tcpdump / Scapy with wlan0 in monitor mode.
+        </div>`;
+    }
+  },
+};
+
+function openModal(type) {
+  const def = modalDefs[type];
+  if (!def) return;
+  document.getElementById('modal-icon').className = 'ti ' + def.icon;
+  document.getElementById('modal-title').textContent = def.title;
+  document.getElementById('modal-body').innerHTML = def.build();
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ─── LOG ───
+const logMessages = [
+  ['ok', 'Nmap scan completed on 192.168.1.0/24'],
+  ['warn', 'SMBv1 detected on 192.168.1.104'],
+  ['warn', 'ADB port open on 192.168.1.107'],
+  ['ok', 'ASUS RT-AX88U firmware is up to date'],
+  ['info', 'Unknown device probing subnet — .1.???'],
+  ['ok', 'SSL certificate valid on 192.168.1.1:443'],
+  ['warn', 'RDP port 3389 reachable from WAN on .1.104'],
+  ['ok', 'Bluetooth scan found 2 discoverable devices'],
+  ['info', 'Smart TV (192.168.1.112) fingerprinted: LG WebOS 22'],
+  ['warn', 'SNMP public community string responding on .1.104'],
+  ['ok', 'Packet capture started on wlan0'],
+  ['info', 'New device connected: 192.168.1.115 (unknown)'],
+];
+let logInterval;
+function startLog() {
+  const logEl = document.getElementById('tab-log');
+  let li = 0;
+  logInterval = setInterval(() => {
+    if (li >= logMessages.length) { li = 0; }
+    const [type, msg] = logMessages[li++];
+    const ts = new Date().toTimeString().slice(0,8);
+    const colorMap = { ok:'ok', warn:'wn', info:'inf', err:'er' };
+    const cls = colorMap[type] || 'ok';
+    const line = document.createElement('div');
+    line.className = 'log-line';
+    line.innerHTML = `<span class="ts">[${ts}]</span> [<span class="${cls}">${type.toUpperCase().padEnd(4)}</span>] ${msg}`;
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+  }, 2200);
+}
+</script>
+</body>
+</html>
